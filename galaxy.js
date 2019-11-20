@@ -2,7 +2,6 @@ const starsVertexShaderSource = `
 	precision mediump float;
 
 	const vec4 CAMERA_SPACE_UP = vec4(0.0, 1.0, 0.0, 0.0);
-	const float MIN_INTENSITY = 0.7;
 	
 	attribute vec4 starPosition;
 	attribute vec4 starColor;
@@ -17,7 +16,6 @@ const starsVertexShaderSource = `
 	uniform mat4 projection;
 
 	varying lowp vec4 vStarColor;
-	varying lowp float radius;
 
 	void main() {
 		vec4 cameraSpaceStarPosition = worldToCamera * objectToWorld * starPosition;
@@ -26,11 +24,11 @@ const starsVertexShaderSource = `
 		vec4 projectedSurfacePoint = projection * pointOnSurface;
 
 		gl_Position = projectedStarCenter;
-		projectedStarCenter /= projectedStarCenter.w;
-		projectedSurfacePoint /= projectedSurfacePoint.w;
+		projectedStarCenter *= 1.0 / projectedStarCenter.w;
+		projectedSurfacePoint *= 1.0 / projectedSurfacePoint.w;
 		
 		float flickering = sin(time + timeTranslation) / 10.0;
-		radius = distance(projectedStarCenter, projectedSurfacePoint) * cameraResolutionHeight;
+		float radius = distance(projectedStarCenter, projectedSurfacePoint) * cameraResolutionHeight;
 		vStarColor = starColor + vec4(flickering, flickering, flickering, 0.0);
 		gl_PointSize = (2.0 + flickering * 1.5) * radius;
 	}
@@ -40,7 +38,6 @@ const starsFragmentShaderSource = `
 	precision lowp float;
 
 	varying lowp vec4 vStarColor;
-	varying lowp float radius;
 
 	void main() {
 		float distance = 2.0 * distance(vec2(0.5, 0.5), gl_PointCoord);
@@ -49,7 +46,7 @@ const starsFragmentShaderSource = `
 			discard;
 		}
 
-		if (distance < 0.5) {
+		if (distance < 0.35) {
 			gl_FragColor = vStarColor;
 		}
 
@@ -61,26 +58,28 @@ const starsFragmentShaderSource = `
 
 const CANVAS = document.querySelector('#canvas');
 const GL = canvas.getContext('webgl');
-const SCALE_FACTOR = 100.0;
+const SCALE_FACTOR = 400.0;
 const CAM_X = 0.0;
 const CAM_Y = 0.0;
-const CAM_Z = -0.1 * SCALE_FACTOR;
+const CAM_Z = 0.0;
 const CAM_LOOK_X = 0.0;
 const CAM_LOOK_Y = 0.0;
 const CAM_LOOK_Z = CAM_Z - 1.0;
 const CAM_FOV = Math.PI / 2.0;
 const CAM_FAR = 10.0 * SCALE_FACTOR;
+const CAM_MOVE_SPEED = 20.0 * (SCALE_FACTOR / 400.0);
 const TAILS = 6;
-const STARS = 55555;
+const STARS = 5555;
 const FLOAT_BYTES = 4;
 const STAR_VERTEX_SIZE = 10;
 const STAR_VERTEX_POSITION_SIZE = 4;
 const STAR_VERTEX_COLOR_SIZE = 4;
 const TAIL_STAR_ROTATION = (3.0 * Math.PI) / 2.0;
-const MIN_STAR_RADIUS = 0.5 * (SCALE_FACTOR / 1000.0);
-const MAX_STAR_RADIUS = MIN_STAR_RADIUS + 0.015 * MIN_STAR_RADIUS;
+const MIN_STAR_RADIUS = 0.5;
+const MAX_STAR_RADIUS = MIN_STAR_RADIUS + 0.75 * MIN_STAR_RADIUS;
 const FLICKERING_PERIOD = 2.0 * Math.PI;
-const FLICKERING_SPEED = 5.0 * Math.PI;
+const FLICKERING_SPEED = Math.PI;
+const GALAXY_ROTATION_SPEED = 0.2;
 
 class Shader {
 	constructor(vertexSource, fragmentSource) {
@@ -159,15 +158,14 @@ class Camera {
 		mat4.perspective(this.projectionMatrix, fov, aspectRatio, near, far);
 	}
 
-	update(delta) {
-		let translate = mat4.create();
-		let inverse = mat4.create();
-		mat4.translate(translate, translate, [0, 0, -delta]);
-		mat4.invert(inverse, translate);
-		mat4.multiply(this.cameraTransform, this.cameraTransform, inverse);
+	translate(translationVector) {
+		let translationMatrix = mat4.create();
+		let inverseTM = mat4.create();
+		mat4.translate(translationMatrix, translationMatrix, translationVector);
+		mat4.invert(inverseTM, translationMatrix);
+		mat4.multiply(this.cameraTransform, this.cameraTransform, inverseTM);
 
-		vec4.transformMat4(this.position, this.position, translate);
-		vec4.transformMat4(this.cameraUp, this.cameraUp, translate);
+		vec4.transformMat4(this.position, this.position, translationMatrix);
 	}
 }
 
@@ -210,7 +208,7 @@ class Galaxy {
 				let y = x + tilt;
 				let distance = Math.sqrt(x * x + y * y);
 				let t = Math.min(distance, 0.95);
-				let z = ((2.0 * Math.random() - 1.0) * (1.0 - t)) / 20.0;
+				let z = (2.0 * Math.random() - 1.0) / 10.0;
 				let pos = vec4.create();
 				let color = vec4.create();
 
@@ -299,7 +297,7 @@ class Galaxy {
 		}
 
 		let rotation = mat4.create();
-		mat4.rotateZ(rotation, rotation, delta);
+		mat4.rotateZ(rotation, rotation, delta * GALAXY_ROTATION_SPEED);
 		mat4.multiply(this.objectToWorld, this.objectToWorld, rotation);
 	}
 
@@ -371,9 +369,20 @@ function setupGL() {
 }
 
 function render(galaxy, camera) {
+	let timeNow = Date.now();
+	let timePrev = timeNow;
+	let delta = 0.0;
+	let cameraMoveDirection = vec3.create();
+
 	function draw() {
-		galaxy.update(0.003);
-		camera.update(-0.025);
+		timeNow = Date.now();
+		delta = (timeNow - timePrev) / 1000.0;
+		timePrev = timeNow;
+		galaxy.update(delta);
+
+		cameraMoveDirection[2] = delta * CAM_MOVE_SPEED;
+		camera.translate(cameraMoveDirection);
+
 		GL.clear(GL.COLOR_BUFFER_BIT | GL.DEPTH_BUFFER_BIT);
 		galaxy.draw(camera);
 		requestAnimationFrame(draw);
