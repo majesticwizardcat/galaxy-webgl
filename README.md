@@ -1,4 +1,4 @@
-# Procedurally generated galaxy in WebGL
+# [Procedurally generated galaxy in WebGL](https://raw.githack.com/loukoum/galaxy-webgl/master/index.html)
 
 ![alt text](https://raw.githubusercontent.com/loukoum/galaxy-webgl/master/screenshot.png)
 
