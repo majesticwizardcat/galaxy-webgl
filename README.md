@@ -1,11 +1,12 @@
-# [Procedurally generated galaxy in WebGL](https://raw.githack.com/loukoum/galaxy-webgl/master/index.html)
+# [Procedurally generated galaxy in WebGL (click to run!)](https://raw.githack.com/loukoum/galaxy-webgl/master/index.html)
 
 ![alt text](https://raw.githubusercontent.com/loukoum/galaxy-webgl/master/screenshot.png)
 
 ### Description
 This is a procedurally generated galaxy rendered in WebGL. The galaxy generation (createStars function) 
 as well as the shaders are all included in galaxy.js and I used gl-matrix.js -which I borrowed,
-for linear algebra operations. The index.html just initializes a canvas for the webGL context.
+for linear algebra operations. The index.html just initializes a canvas for the webGL context. You can click
+the title at the top of the readme to run the project.
 
 ### Star generation
 To generate the stars first a random point is generated in the y = x line where x ranges in [0, 1) and
