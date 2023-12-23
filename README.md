@@ -1,6 +1,6 @@
 # [Procedurally generated galaxy in WebGL (click to run!)](https://raw.githack.com/loukoum/galaxy-webgl/master/index.html)
 
-![alt text](https://raw.githubusercontent.com/loukoum/galaxy-webgl/master/screenshot.png)
+![alt text](https://raw.githubusercontent.com/majesticwizardcqt/galaxy-webgl/master/screenshot.png)
 
 ### Description
 This is a procedurally generated galaxy rendered in WebGL. The galaxy generation (createStars function) 
